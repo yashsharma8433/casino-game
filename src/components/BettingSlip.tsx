@@ -9,7 +9,7 @@ import { useEffect, useMemo, useState } from "react";
 
 export default function BettingSlip() {
   const { selections, stake, setStake, removeSelection, clearSelections, potentialReturn } = useBettingSlip();
-  const { data: balanceData, refetch: refetchBalance, setBalance } = useBalance();
+  const { data: balanceData, setBalance } = useBalance(); // removed unused refetchBalance
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -29,9 +29,15 @@ export default function BettingSlip() {
       try {
         const { data } = await apiClient.post<BetResponse>("/bets", body);
         return data;
-      } catch (err: any) {
-        const fallback: BetResponse = { status: "error", message: "Unknown error" } as any;
-        return (err?.response?.data as BetResponse) || fallback;
+      } catch (err: unknown) {
+        const fallback: BetResponse = { status: "error", message: "Unknown error" };
+
+        if (err && typeof err === "object" && "response" in err) {
+          const maybeErr = err as { response?: { data?: BetResponse } };
+          return maybeErr.response?.data || fallback;
+        }
+
+        return fallback;
       }
     },
     onSuccess: (res) => {
@@ -52,7 +58,10 @@ export default function BettingSlip() {
   return (
     <div className="">
       {/* Desktop sidebar */}
-      <div className="hidden md:block fixed top-0 right-0 h-full w-80 border-l border-foreground/20 p-4 overflow-y-auto" style={{ backgroundColor: "var(--slip)" }}>
+      <div
+        className="hidden md:block fixed top-0 right-0 h-full w-80 border-l border-foreground/20 p-4 overflow-y-auto"
+        style={{ backgroundColor: "var(--slip)" }}
+      >
         <SlipContent
           selections={selections}
           stake={stake}
@@ -71,7 +80,7 @@ export default function BettingSlip() {
       <div className="md:hidden">
         <button
           className="fixed bottom-4 right-4 px-4 py-2 rounded-full bg-foreground text-background shadow"
-          onClick={() => setOpen(o => !o)}
+          onClick={() => setOpen((o) => !o)}
           aria-expanded={open}
           aria-controls="mobile-slip"
         >
@@ -115,7 +124,18 @@ interface SlipContentProps {
   balance: number;
 }
 
-function SlipContent({ selections, stake, setStake, potentialReturn, removeSelection, canPlace, place, placing, errorText, balance }: SlipContentProps) {
+function SlipContent({
+  selections,
+  stake,
+  setStake,
+  potentialReturn,
+  removeSelection,
+  canPlace,
+  place,
+  placing,
+  errorText,
+  balance,
+}: SlipContentProps) {
   return (
     <div className="flex flex-col gap-3">
       <div className="text-lg font-semibold flex items-center justify-between">
@@ -129,12 +149,21 @@ function SlipContent({ selections, stake, setStake, potentialReturn, removeSelec
       ) : (
         <div className="flex flex-col gap-2">
           {selections.map((s) => (
-            <div key={s.matchId} className="border border-foreground/20 rounded p-2 flex items-center justify-between gap-2 animate-slide-in">
+            <div
+              key={s.matchId}
+              className="border border-foreground/20 rounded p-2 flex items-center justify-between gap-2 animate-slide-in"
+            >
               <div className="text-sm">
                 <div className="font-medium">{s.label}</div>
                 <div className="opacity-70">@ {s.odd.toFixed(2)}</div>
               </div>
-              <button aria-label="remove" className="text-xs underline opacity-80" onClick={() => removeSelection(s.matchId)}>Remove</button>
+              <button
+                aria-label="remove"
+                className="text-xs underline opacity-80"
+                onClick={() => removeSelection(s.matchId)}
+              >
+                Remove
+              </button>
             </div>
           ))}
         </div>
@@ -154,7 +183,11 @@ function SlipContent({ selections, stake, setStake, potentialReturn, removeSelec
         <div className="text-sm whitespace-nowrap">Return: {potentialReturn.toFixed(2)}</div>
       </div>
 
-      {errorText && <div role="alert" className="text-sm text-red-500">{errorText}</div>}
+      {errorText && (
+        <div role="alert" className="text-sm text-red-500">
+          {errorText}
+        </div>
+      )}
 
       <button
         disabled={!canPlace || placing}
@@ -169,5 +202,3 @@ function SlipContent({ selections, stake, setStake, potentialReturn, removeSelec
     </div>
   );
 }
-
-
